@@ -55,6 +55,11 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 		try {
 			String url = POKEAPI_BASE_URL + "/pokemon?limit=2000";
 			JsonNode response = restTemplate.getForObject(url, JsonNode.class);
+			
+			if (response == null) {
+				throw new RuntimeException("Failed to fetch Pokemon list from API");
+			}
+			
 			JsonNode results = response.get("results");
 			if (results != null) {
 				ZSetOperations<String, String> ZSetOps = stringRedisTemplate.opsForZSet();
@@ -122,6 +127,10 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 	private void cacheSearchResults(String searchQuery, String cacheKey) {
 		ZSetOperations<String, String> zSetOps = stringRedisTemplate.opsForZSet();
 		Set<String> allNames = zSetOps.range(POKEMON_NAMES_ZSET_KEY, 0, -1);
+		
+		if (allNames == null) {
+			allNames = new HashSet<>();
+		}
 
 		for (String name : allNames) {
 			if (name.toLowerCase().contains(searchQuery)) {
@@ -405,6 +414,10 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			// Need to fetch basic Pokemon data for ID and sprites
 			String url = POKEAPI_BASE_URL + "/pokemon/" + pokemonName;
 			JsonNode pokemonData = restTemplate.getForObject(url, JsonNode.class);
+			
+			if (pokemonData == null) {
+				return null;
+			}
 
 			Pokemon.EvolutionStage stage = new Pokemon.EvolutionStage();
 			stage.setId(pokemonData.get("id").asInt());
@@ -512,28 +525,32 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			List<Pokemon.Abilities> abilities = new ArrayList<>();
 			String url = POKEAPI_BASE_URL + "/pokemon/" + pokemonName;
 			JsonNode pokemonData = restTemplate.getForObject(url, JsonNode.class);
-			JsonNode abilitiesNode = pokemonData.path("abilities");
+			
+			if (pokemonData != null) {
+				JsonNode abilitiesNode = pokemonData.path("abilities");
 
-			for (JsonNode abilityNode : abilitiesNode) {
-				Pokemon.Abilities ability = new Pokemon.Abilities();
-				String abilityName = abilityNode.get("ability").get("name").asText();
-				ability.setName(abilityName);
+				for (JsonNode abilityNode : abilitiesNode) {
+					Pokemon.Abilities ability = new Pokemon.Abilities();
+					String abilityName = abilityNode.get("ability").get("name").asText();
+					ability.setName(abilityName);
 
-				ability.setHidden(abilityNode.get("is_hidden").asBoolean());
+					ability.setHidden(abilityNode.get("is_hidden").asBoolean());
 
-				String abilityUrl = abilityNode.get("ability").get("url").asText();
-				JsonNode abilityData = restTemplate.getForObject(abilityUrl, JsonNode.class);
-				JsonNode effectEntries = abilityData.path("effect_entries");
-
-				String description = "";
-				for (JsonNode effect : effectEntries) {
-					if (effect.get("language").get("name").asText().equals("en")) {
-						description = effect.get("short_effect").asText();
-						break;
+					String abilityUrl = abilityNode.get("ability").get("url").asText();
+					JsonNode abilityData = restTemplate.getForObject(abilityUrl, JsonNode.class);
+					String description = "";
+					if (abilityData != null) {
+						JsonNode effectEntries = abilityData.path("effect_entries");
+						for (JsonNode effect : effectEntries) {
+							if (effect.get("language").get("name").asText().equals("en")) {
+								description = effect.get("short_effect").asText();
+								break;
+							}
+						}
 					}
+					ability.setDescription(description);
+					abilities.add(ability);
 				}
-				ability.setDescription(description);
-				abilities.add(ability);
 			}
 
 			// Cache the updated abilities
