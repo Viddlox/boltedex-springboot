@@ -25,6 +25,7 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 	private static final String POKEMON_SPECIES_CACHE_PREFIX = "pokemon:species:";
 	private static final String POKEMON_ABILITIES_CACHE_PREFIX = "pokemon:abilities:";
 	private static final int CACHE_TTL_HOURS = 24;
+	private static final int CACHE_SEARCH_TTL_HOURS = 1;
 
 	@Autowired
 	private RedisTemplate<String, Pokemon> pokemonRedisTemplate;
@@ -35,8 +36,8 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 	@Autowired
 	private RedisTemplate<String, List<Pokemon.Abilities>> abilitiesRedisTemplate;
 
-    @Autowired
-    private RestTemplate restTemplate;
+	@Autowired
+	private RestTemplate restTemplate;
 
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -57,11 +58,11 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 		try {
 			String url = POKEAPI_BASE_URL + "/pokemon?limit=2000";
 			JsonNode response = restTemplate.getForObject(url, JsonNode.class);
-			
+
 			if (response == null) {
 				throw new RuntimeException("Failed to fetch Pokemon list from API");
 			}
-			
+
 			JsonNode results = response.get("results");
 			if (results != null) {
 				ZSetOperations<String, String> ZSetOps = stringRedisTemplate.opsForZSet();
@@ -105,10 +106,10 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 
 		// Check if search results are cached (ensure all elements have score 0)
 		if (zSetOps.size(searchCacheKey) == 0) {
-			cacheSearchResults(searchQuery, searchCacheKey); // Modified to set score = 0
+			cacheSearchResults(searchQuery, searchCacheKey);
 		}
 
-		// Now range() will return in lexicographical order since all scores are 0
+		// range() will return in lexicographical order since all scores are 0
 		if (cursor == null || cursor.isEmpty()) {
 			Set<String> names = zSetOps.range(searchCacheKey, 0, limit - 1);
 			return new ArrayList<>(names);
@@ -129,7 +130,7 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 	private void cacheSearchResults(String searchQuery, String cacheKey) {
 		ZSetOperations<String, String> zSetOps = stringRedisTemplate.opsForZSet();
 		Set<String> allNames = zSetOps.range(POKEMON_NAMES_ZSET_KEY, 0, -1);
-		
+
 		if (allNames == null) {
 			allNames = new HashSet<>();
 		}
@@ -140,7 +141,7 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			}
 		}
 
-		stringRedisTemplate.expire(cacheKey, 1, TimeUnit.HOURS);
+		stringRedisTemplate.expire(cacheKey, CACHE_SEARCH_TTL_HOURS, TimeUnit.HOURS);
 	}
 
 	private List<Pokemon> fetchPokemons(List<String> pokemonNames) {
@@ -416,7 +417,7 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			// Need to fetch basic Pokemon data for ID and sprites
 			String url = POKEAPI_BASE_URL + "/pokemon/" + pokemonName;
 			JsonNode pokemonData = restTemplate.getForObject(url, JsonNode.class);
-			
+
 			if (pokemonData == null) {
 				return null;
 			}
@@ -527,7 +528,7 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			List<Pokemon.Abilities> abilities = new ArrayList<>();
 			String url = POKEAPI_BASE_URL + "/pokemon/" + pokemonName;
 			JsonNode pokemonData = restTemplate.getForObject(url, JsonNode.class);
-			
+
 			if (pokemonData != null) {
 				JsonNode abilitiesNode = pokemonData.path("abilities");
 

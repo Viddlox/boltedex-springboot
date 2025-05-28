@@ -26,9 +26,9 @@ public class CacheRefreshScheduler {
 	private final RestTemplate restTemplate = new RestTemplate();
 
 	/**
-	 * Preload Pokemon names into Redis ZSET on application startup
+	 * Preload Pokemon names into Redis ZSET on application startup every 24 hours
 	 */
-	@Scheduled(fixedRate = 24 * 60 * 60 * 1000) // Run every 24 hours
+	@Scheduled(fixedRate = 24 * 60 * 60 * 1000)
 	public void preloadPokemonCache() {
 		logger.info("Starting Pokemon cache preload...");
 
@@ -80,7 +80,7 @@ public class CacheRefreshScheduler {
 	/**
 	 * Run cache preload immediately on application startup
 	 */
-	@Scheduled(fixedDelay = Long.MAX_VALUE) // Run once on startup, then never again
+	@Scheduled(fixedDelay = Long.MAX_VALUE)
 	public void preloadOnStartup() {
 		logger.info("Running initial Pokemon cache preload on startup...");
 		preloadPokemonCache();
