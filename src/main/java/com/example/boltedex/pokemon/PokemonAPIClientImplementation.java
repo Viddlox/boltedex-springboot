@@ -35,7 +35,9 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 	@Autowired
 	private RedisTemplate<String, List<Pokemon.Abilities>> abilitiesRedisTemplate;
 
-	private final RestTemplate restTemplate = new RestTemplate();
+    @Autowired
+    private RestTemplate restTemplate;
+
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Override
