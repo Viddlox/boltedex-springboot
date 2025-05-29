@@ -300,8 +300,6 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			// Now extract the last segment
 			String chainId = evolutionChainUrl.substring(evolutionChainUrl.lastIndexOf('/') + 1);
 
-			System.out.println("chainId: " + chainId);
-
 			// Step 2: Get evolution chain data (cached)
 			JsonNode evolutionChainData = getEvolutionChainData(chainId);
 			if (evolutionChainData == null || !evolutionChainData.has("chain")) {
@@ -324,7 +322,7 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			try {
 				return objectMapper.readTree(cachedData);
 			} catch (Exception e) {
-				// Fall through to API call
+				throw new RuntimeException("Error parsing species data for: " + pokemonName, e);
 			}
 		}
 

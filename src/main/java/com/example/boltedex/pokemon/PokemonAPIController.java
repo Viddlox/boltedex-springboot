@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.List;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @RestController
 @RequestMapping("/api/pokemon")
@@ -27,18 +28,18 @@ public class PokemonAPIController {
 		return ResponseEntity.ok(new PokemonAPIClientDTO(pokemons, nextCursor));
 	}
 
-	@GetMapping("/evolution")
-	public List<Pokemon.EvolutionStage> getPokemonEvolutionChain(@RequestParam String name) {
+	@GetMapping("/evolution/{name}")
+	public List<Pokemon.EvolutionStage> getPokemonEvolutionChain(@PathVariable String name) {
 		return pokemonAPIClientService.getPokemonEvolutionChain(name);
 	}
 
-	@GetMapping("/location")
-	public List<String> getPokemonLocationAreaEncounters(@RequestParam String name) {
+	@GetMapping("/location/{name}")
+	public List<String> getPokemonLocationAreaEncounters(@PathVariable String name) {
 		return pokemonAPIClientService.getPokemonLocationAreaEncounters(name);
 	}
 
-	@GetMapping("/abilities")
-	public List<Pokemon.Abilities> getPokemonAbilities(@RequestParam String name) {
+	@GetMapping("/abilities/{name}")
+	public List<Pokemon.Abilities> getPokemonAbilities(@PathVariable String name) {
 		return pokemonAPIClientService.getPokemonAbilities(name);
 	}
 }
