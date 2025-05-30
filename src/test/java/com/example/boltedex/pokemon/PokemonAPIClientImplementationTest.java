@@ -145,7 +145,7 @@ class PokemonAPIClientImplementationTest {
 		assertEquals(2, result.getResults().size());
 
 		// Verify flow and interactions
-		verify(zSetOperations).size("pokemon:names:sorted");
+		verify(zSetOperations, times(2)).size("pokemon:names:sorted");
 		verify(restTemplate).getForObject("https://pokeapi.co/api/v2/pokemon?limit=2000", JsonNode.class);
 		verify(zSetOperations).range("pokemon:names:sorted", 0, 1);
 		verify(restTemplate).getForObject("https://pokeapi.co/api/v2/pokemon/pikachu", JsonNode.class);
@@ -198,7 +198,7 @@ class PokemonAPIClientImplementationTest {
 
 		// Mock search cache miss
 		String searchCacheKey = "pokemon:search:pika";
-		when(zSetOperations.size(searchCacheKey)).thenReturn(0L);
+		when(zSetOperations.size(searchCacheKey)).thenReturn(0L).thenReturn(1L); // First call: cache miss, second call: total count
 
 		// Mock all pokemon names for search
 		Set<String> allNames = new LinkedHashSet<>(Arrays.asList("pikachu", "charizard", "blastoise"));
@@ -209,7 +209,7 @@ class PokemonAPIClientImplementationTest {
 
 		// Mock getting search results
 		Set<String> searchResults = new LinkedHashSet<>(Collections.singletonList("pikachu"));
-		when(zSetOperations.range(searchCacheKey, 0, 1)).thenReturn(searchResults);
+		when(zSetOperations.range(searchCacheKey, 0, 0)).thenReturn(searchResults); // Changed from 0,1 to 0,0 for limit=1
 
 		// Mock cached pokemon details
 		Pokemon cachedPikachu = createMockPokemon("pikachu", 25);
@@ -286,7 +286,7 @@ class PokemonAPIClientImplementationTest {
 		// Arrange
 		// Simulate one Pokémon in cache (pikachu), no detail in cache, and API throws
 		// on fetch
-		when(zSetOperations.size("pokemon:names:sorted")).thenReturn(1L);
+		when(zSetOperations.size("pokemon:names:sorted")).thenReturn(1L).thenReturn(1L); // Two calls: empty check + total count
 		Set<String> mockNames = new LinkedHashSet<>(Collections.singletonList("pikachu"));
 		when(zSetOperations.range("pokemon:names:sorted", 0, 0)).thenReturn(mockNames);
 		when(valueOperations.get("pokemon:detail:pikachu")).thenReturn(null);
@@ -299,8 +299,8 @@ class PokemonAPIClientImplementationTest {
 
 		// Assert
 		assertNotNull(result);
-		assertEquals(1, result.getResults().size());
-		assertNull(result.getResults().get(0)); // API failed, should insert null
+		assertEquals(0, result.getResults().size()); // API failed, Pokemon not added to results
+		assertEquals(1, result.getTotalCount()); // Total count is still 1 (from cache size)
 	}
 
 	private Pokemon createMockPokemon(String name, int id) {
