@@ -8,14 +8,17 @@ WORKDIR /app
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
 
+# Make Maven wrapper executable
+RUN chmod +x ./mvnw
+
 # Download dependencies (this layer will be cached unless pom.xml changes)
-RUN ./mvnw dependency:go-offline -B
+RUN sh ./mvnw dependency:go-offline -B
 
 # Copy source code
 COPY src src
 
 # Build the application
-RUN ./mvnw clean package -DskipTests
+RUN sh ./mvnw clean package -DskipTests
 
 # Production image
 FROM eclipse-temurin:17-jre-alpine
