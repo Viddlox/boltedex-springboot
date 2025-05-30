@@ -1,8 +1,16 @@
 # BolteDex - Spring Boot Pokemon API Client
 
-A high-performance Pokemon API client built with Spring Boot, featuring Redis-backed caching, cursor-based pagination, and efficient search capabilities.
+<div align="center">
+  <p>
+    <em>A high-performance Pokemon API client built with Spring Boot, featuring Redis-backed caching, cursor-based pagination, and efficient search capabilities.</em>
+  </p>
+  
+  ![SpringBoot](https://img.shields.io/badge/SpringBoot-6DB33F?style=for-the-badge&logo=Spring&logoColor=white)
+  ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+  ![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
+</div>
 
-## Features
+## ✨ Features
 
 ### Redis-Backed Search and Pagination
 - Efficient pagination using Redis Sorted Sets (ZSets)
@@ -36,14 +44,13 @@ A high-performance Pokemon API client built with Spring Boot, featuring Redis-ba
 - Detailed error messages and logging
 - Cache resilience during API downtime
 
-## Technical Stack
+## 🚀 Tech Stack
 
-### Core Technologies
-- Spring Boot
-- Redis
-- PokeAPI (External Service)
+- **SpringBoot**
+- **Vite**
+- **PokeAPIv2**
 
-### Key Dependencies
+### 📚 Key Dependencies
 ```xml
 <dependencies>
     <!-- Spring Boot -->
@@ -67,7 +74,7 @@ A high-performance Pokemon API client built with Spring Boot, featuring Redis-ba
 </dependencies>
 ```
 
-## Architecture
+## 🎨 Architecture
 
 ### Caching Strategy
 1. **Name Index Caching**
@@ -91,7 +98,7 @@ A high-performance Pokemon API client built with Spring Boot, featuring Redis-ba
 - Configurable timeouts and retries
 - Modular architecture for easy extension
 
-## Testing
+## 🔎 Testing
 
 ### Unit Tests
 - Comprehensive test coverage
@@ -127,7 +134,7 @@ class PokemonAPIClientImplementationTest {
 }
 ```
 
-## Usage Examples
+## 📝 Usage Examples
 
 ### Basic Pokemon Retrieval
 ```java
@@ -264,7 +271,7 @@ if (!searchResult.isEmpty()) {
 }
 ```
 
-## Configuration
+## 🔧 Configuration
 
 ### Application Properties
 ```properties
@@ -367,13 +374,22 @@ public void preloadPokemonDetails() // Runs 2 minutes after preloadPokemonCache(
    - `pokemon:location:encounters:{name}` - Location encounter data
    - `pokemon:abilities:{name}` - Pokemon abilities
 
-### Development Environment
+### 💻 Development Environment
 
 - Java 17 or higher
 - Spring Boot 3.x
 - Redis 6.x or higher
 - Maven 3.x
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+
+---
+
+<div align="center">
+  <p>Made with ❤️</p>
+  <p>
+    <a href="#-overview">Back to Top</a>
+  </p>
+</div>
