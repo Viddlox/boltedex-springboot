@@ -42,13 +42,28 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Override
-	public List<Pokemon> getPokemons(String cursor, int limit, @Nullable String searchQuery) {
+	public PokemonAPIClientDTO getPokemons(String cursor, int limit, @Nullable String searchQuery) {
 		try {
 			if (stringRedisTemplate.opsForZSet().size(POKEMON_NAMES_ZSET_KEY) == 0) {
 				fetchAndCacheAllPokemonNames();
 			}
+			ZSetOperations<String, String> zSetOps = stringRedisTemplate.opsForZSet();
+			String key = (searchQuery != null && !searchQuery.trim().isEmpty())
+					? POKEMON_SEARCH_PREFIX + searchQuery.toLowerCase().trim()
+					: POKEMON_NAMES_ZSET_KEY;
+
 			List<String> pokemonNames = getPaginatedPokemonNames(cursor, limit, searchQuery);
-			return fetchPokemons(pokemonNames);
+			List<Pokemon> pokemons = fetchPokemons(pokemonNames);
+
+			String nextCursor = (pokemonNames.isEmpty()) ? null : pokemonNames.get(pokemonNames.size() - 1);
+			Long size = zSetOps.size(key);
+
+			// We compute total count for efficient chunking on front end
+			// We could hardcode to 1302, but this does not account for search queries or
+			// new pokemon additions
+			long totalCount = size != null ? size : 0;
+
+			return new PokemonAPIClientDTO(pokemons, nextCursor, totalCount);
 		} catch (Exception e) {
 			throw new RuntimeException("Error fetching Pokemons", e);
 		}
@@ -157,7 +172,9 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 					pokemonRedisTemplate.opsForValue().set(cacheKey, pokemon, CACHE_TTL_HOURS, TimeUnit.HOURS);
 				}
 			}
-			pokemons.add(pokemon);
+			if (pokemon != null) {
+				pokemons.add(pokemon);
+			}
 		}
 		return pokemons;
 	}
@@ -173,7 +190,7 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 		}
 	}
 
-	private Pokemon mapToPokemon(JsonNode data) {
+	public Pokemon mapToPokemon(JsonNode data) {
 		Pokemon pokemon = new Pokemon();
 
 		pokemon.setId(data.get("id").asInt());

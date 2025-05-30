@@ -11,6 +11,7 @@ A high-performance Pokemon API client built with Spring Boot, featuring Redis-ba
 - Search functionality with cached results and TTL
 
 ### Intelligent Caching System
+- Preloading of essential pokemon data via startup and CRON schedule
 - Multi-level caching strategy:
   - Pokemon name index caching (24-hour TTL)
   - Individual Pokemon details caching (24-hour TTL)
@@ -333,6 +334,16 @@ private static final String POKEMON_ABILITIES_CACHE_PREFIX = "pokemon:abilities:
 // TTL Configuration
 private static final int CACHE_TTL_HOURS = 24;  // For most Pokemon data
 private static final int SEARCH_CACHE_TTL_HOURS = 1;  // For search results
+
+// Cache Scheduler Configuration
+@Scheduled(fixedDelay = Long.MAX_VALUE) // First preload only on startup
+public void preloadOnStartup();
+
+@Scheduled(cron = "0 0 3 * * *") // Preload subroutine for basic name-keys of Pokemons
+public void preloadPokemonCache() // Only run on startup and 3am daily
+
+@Scheduled(cron = "0 2 3 * * *") // Preload subroutine for basic data-values of Pokemons
+public void preloadPokemonDetails() // Runs 2 minutes after preloadPokemonCache()
 ```
 
 ### Redis Data Structures Used

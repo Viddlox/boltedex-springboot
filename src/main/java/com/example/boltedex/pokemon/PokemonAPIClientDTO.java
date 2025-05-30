@@ -6,10 +6,12 @@ public class PokemonAPIClientDTO {
 
 	private List<Pokemon> results;
 	private String nextCursor;
+	private long totalCount;
 
-	public PokemonAPIClientDTO(List<Pokemon> results, String nextCursor) {
+	public PokemonAPIClientDTO(List<Pokemon> results, String nextCursor, long totalCount) {
 		this.results = results;
 		this.nextCursor = nextCursor;
+		this.totalCount = totalCount;
 	}
 
 	public List<Pokemon> getResults() {
@@ -18,5 +20,9 @@ public class PokemonAPIClientDTO {
 
 	public String getNextCursor() {
 		return nextCursor;
+	}
+
+	public long getTotalCount() {
+		return totalCount;
 	}
 }

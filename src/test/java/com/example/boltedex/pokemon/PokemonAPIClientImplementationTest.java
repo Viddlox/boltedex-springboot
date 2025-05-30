@@ -138,11 +138,11 @@ class PokemonAPIClientImplementationTest {
 				eq(JsonNode.class))).thenReturn(mockPokemonResponse);
 
 		// Act
-		List<Pokemon> result = pokemonAPIClient.getPokemons(null, 2, null);
+		PokemonAPIClientDTO result = pokemonAPIClient.getPokemons(null, 2, null);
 
 		// Assert
 		assertNotNull(result);
-		assertEquals(2, result.size());
+		assertEquals(2, result.getResults().size());
 
 		// Verify flow and interactions
 		verify(zSetOperations).size("pokemon:names:sorted");
@@ -173,13 +173,13 @@ class PokemonAPIClientImplementationTest {
 		when(valueOperations.get("pokemon:detail:charizard")).thenReturn(cachedCharizard);
 
 		// Act
-		List<Pokemon> result = pokemonAPIClient.getPokemons(null, 2, null);
+		PokemonAPIClientDTO result = pokemonAPIClient.getPokemons(null, 2, null);
 
 		// Assert
 		assertNotNull(result);
-		assertEquals(2, result.size());
-		assertEquals("pikachu", result.get(0).getName());
-		assertEquals("charizard", result.get(1).getName());
+		assertEquals(2, result.getResults().size());
+		assertEquals("pikachu", result.getResults().get(0).getName());
+		assertEquals("charizard", result.getResults().get(1).getName());
 
 		// Verify no API calls were made (all cached)
 		verify(restTemplate, never()).getForObject(contains("pokemon/"), eq(JsonNode.class));
@@ -216,12 +216,12 @@ class PokemonAPIClientImplementationTest {
 		when(valueOperations.get("pokemon:detail:pikachu")).thenReturn(cachedPikachu);
 
 		// Act
-		List<Pokemon> result = pokemonAPIClient.getPokemons(null, 1, "pika");
+		PokemonAPIClientDTO result = pokemonAPIClient.getPokemons(null, 1, "pika");
 
 		// Assert
 		assertNotNull(result);
-		assertEquals(1, result.size());
-		assertEquals("pikachu", result.get(0).getName());
+		assertEquals(1, result.getResults().size());
+		assertEquals("pikachu", result.getResults().get(0).getName());
 
 		// Verify search caching
 		verify(zSetOperations).add(searchCacheKey, "pikachu", 0.0);
@@ -250,13 +250,13 @@ class PokemonAPIClientImplementationTest {
 		when(valueOperations.get("pokemon:detail:blastoise")).thenReturn(cachedBlastoise);
 
 		// Act
-		List<Pokemon> result = pokemonAPIClient.getPokemons("pikachu", 2, null);
+		PokemonAPIClientDTO result = pokemonAPIClient.getPokemons("pikachu", 2, null);
 
 		// Assert
 		assertNotNull(result);
-		assertEquals(2, result.size());
-		assertEquals("charizard", result.get(0).getName());
-		assertEquals("blastoise", result.get(1).getName());
+		assertEquals(2, result.getResults().size());
+		assertEquals("charizard", result.getResults().get(0).getName());
+		assertEquals("blastoise", result.getResults().get(1).getName());
 
 		verify(zSetOperations).rank("pokemon:names:sorted", "pikachu");
 		verify(zSetOperations).range("pokemon:names:sorted", 1, 2);
@@ -295,12 +295,12 @@ class PokemonAPIClientImplementationTest {
 				eq(JsonNode.class))).thenThrow(new RuntimeException("Pokemon API Error"));
 
 		// Act
-		List<Pokemon> result = pokemonAPIClient.getPokemons(null, 1, null);
+		PokemonAPIClientDTO result = pokemonAPIClient.getPokemons(null, 1, null);
 
 		// Assert
 		assertNotNull(result);
-		assertEquals(1, result.size());
-		assertNull(result.get(0)); // API failed, should insert null
+		assertEquals(1, result.getResults().size());
+		assertNull(result.getResults().get(0)); // API failed, should insert null
 	}
 
 	private Pokemon createMockPokemon(String name, int id) {

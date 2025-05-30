@@ -22,10 +22,8 @@ public class PokemonAPIController {
 		@RequestParam(defaultValue = "") String cursor,
 		@RequestParam(defaultValue = "30") int limit
 	) {
-		List<Pokemon> pokemons = pokemonAPIClientService.getPokemons(cursor, limit, query);
-		String nextCursor = pokemons.isEmpty() ? null : pokemons.get(pokemons.size() - 1).getName();
-	
-		return ResponseEntity.ok(new PokemonAPIClientDTO(pokemons, nextCursor));
+		PokemonAPIClientDTO result = pokemonAPIClientService.getPokemons(cursor, limit, query);
+		return ResponseEntity.ok(result);
 	}
 
 	@GetMapping("/evolution/{name}")

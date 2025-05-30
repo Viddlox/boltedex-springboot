@@ -11,7 +11,7 @@ public class PokemonAPIClientService {
 	@Autowired
 	private PokemonAPIClient pokemonAPIClient;
 
-	public List<Pokemon> getPokemons(String cursor, int limit, @Nullable String searchQuery) {
+	public PokemonAPIClientDTO getPokemons(String cursor, int limit, @Nullable String searchQuery) {
 		return pokemonAPIClient.getPokemons(cursor, limit, searchQuery);
 	}
 
