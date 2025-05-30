@@ -343,8 +343,9 @@ private static final int CACHE_TTL_HOURS = 24;  // For most Pokemon data
 private static final int SEARCH_CACHE_TTL_HOURS = 1;  // For search results
 
 // Cache Scheduler Configuration
-@Scheduled(fixedDelay = Long.MAX_VALUE) // First preload only on startup
-public void preloadOnStartup();
+@Scheduled(fixedDelay = 2000)
+@Async("taskExecutor")
+public void scheduleStartupPreload() // Performs a polling check for redis availability after startup
 
 @Scheduled(cron = "0 0 3 * * *") // Preload subroutine for basic name-keys of Pokemons
 public void preloadPokemonCache() // Only run on startup and 3am daily

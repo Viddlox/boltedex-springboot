@@ -12,6 +12,8 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.example.boltedex.pokemon.Pokemon;
 import com.example.boltedex.pokemon.PokemonAPIClientImplementation;
+import org.springframework.scheduling.annotation.Async;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +28,11 @@ public class CacheRefreshScheduler {
 	private static final String POKEMON_DETAIL_CACHE_PREFIX = "pokemon:detail:";
 	private static final int CACHE_TTL_HOURS = 24;
 
+	private final AtomicBoolean preloadCompleted = new AtomicBoolean(false);
+
+	@Value("${cache.preload.on-startup:true}")
+	private boolean preloadOnStartup;
+
 	@Autowired
 	private RedisTemplate<String, String> stringRedisTemplate;
 
@@ -34,9 +41,6 @@ public class CacheRefreshScheduler {
 
 	@Autowired
 	private PokemonAPIClientImplementation pokemonAPIClient;
-
-	@Value("${cache.preload.pokemon-details:false}")
-	private boolean preloadPokemonDetails;
 
 	private final RestTemplate restTemplate = new RestTemplate();
 
@@ -58,8 +62,6 @@ public class CacheRefreshScheduler {
 						cacheSize, ttl);
 				return;
 			}
-
-			// Fetch all Pokemon names from API
 			String url = POKEAPI_BASE_URL + "/pokemon?limit=2000";
 			JsonNode response = restTemplate.getForObject(url, JsonNode.class);
 
@@ -81,8 +83,6 @@ public class CacheRefreshScheduler {
 				zSetOps.add(POKEMON_NAMES_ZSET_KEY, name, 0);
 				count++;
 			}
-
-			// Set expiration
 			stringRedisTemplate.expire(POKEMON_NAMES_ZSET_KEY, CACHE_TTL_HOURS, TimeUnit.HOURS);
 
 			logger.info("Successfully preloaded {} Pokemon names into cache", count);
@@ -95,12 +95,8 @@ public class CacheRefreshScheduler {
 	/**
 	 * Preload Pokemon details for improved getPokemons API performance
 	 */
-	@Scheduled(cron = "0 2 3 * * *") // 2 minutes after names preload
+	@Scheduled(cron = "0 2 3 * * *")
 	public void preloadPokemonDetails() {
-		if (!preloadPokemonDetails) {
-			logger.info("Pokemon details preload is disabled");
-			return;
-		}
 
 		logger.info("Starting Pokemon details preload...");
 
@@ -113,6 +109,7 @@ public class CacheRefreshScheduler {
 				logger.warn("No Pokemon names found in cache, skipping details preload");
 				return;
 			}
+			logger.info("Found {} Pokemon names in cache, checking for cached details...", pokemonNames.size());
 
 			int preloaded = 0;
 			int skipped = 0;
@@ -120,7 +117,7 @@ public class CacheRefreshScheduler {
 
 			for (String name : pokemonNames) {
 				String cacheKey = POKEMON_DETAIL_CACHE_PREFIX + name;
-				
+
 				// Skip if already cached and fresh
 				if (pokemonRedisTemplate.opsForValue().get(cacheKey) != null) {
 					skipped++;
@@ -128,10 +125,9 @@ public class CacheRefreshScheduler {
 				}
 
 				try {
-					// Fetch Pokemon data from API
 					String url = POKEAPI_BASE_URL + "/pokemon/" + name;
 					JsonNode pokemonData = restTemplate.getForObject(url, JsonNode.class);
-					
+
 					if (pokemonData != null) {
 						Pokemon pokemon = pokemonAPIClient.mapToPokemon(pokemonData);
 						if (pokemon != null) {
@@ -143,20 +139,15 @@ public class CacheRefreshScheduler {
 					} else {
 						failed++;
 					}
-
-					// Rate limiting
 					if ((preloaded + failed) % 50 == 0) {
 						logger.info("Progress: {} preloaded, {} skipped, {} failed", preloaded, skipped, failed);
 					}
-					Thread.sleep(100);
-
 				} catch (Exception e) {
 					logger.warn("Failed to preload Pokemon: {}", name, e);
 					failed++;
 				}
 			}
-
-			logger.info("Pokemon details preload completed. Preloaded: {}, Skipped: {}, Failed: {}", 
+			logger.info("Pokemon details preload completed. Preloaded: {}, Skipped: {}, Failed: {}",
 					preloaded, skipped, failed);
 
 		} catch (Exception e) {
@@ -165,16 +156,46 @@ public class CacheRefreshScheduler {
 	}
 
 	/**
-	 * Run cache preload immediately on application startup
+	 * Run cache preload on application startup with Redis availability check
 	 */
-	@Scheduled(fixedDelay = Long.MAX_VALUE)
-	public void preloadOnStartup() {
-		logger.info("Running initial Pokemon cache preload on startup...");
-		preloadPokemonCache();
-		
-		if (preloadPokemonDetails) {
-			logger.info("Pokemon details preload is enabled, starting preload...");
-			preloadPokemonDetails();
+	@Scheduled(fixedDelay = 2000)
+	@Async("taskExecutor")
+	public void scheduleStartupPreload() {
+		if (!preloadOnStartup || preloadCompleted.get()) {
+			return;
+		}
+
+		if (!isRedisAvailable()) {
+			logger.warn("Redis is not available, polling preload...");
+			return;
+		}
+
+		try {
+			logger.info("Redis available, running initial cache preload...");
+			preloadPokemonCache();
+
+			Long cacheSize = stringRedisTemplate.opsForZSet().size(POKEMON_NAMES_ZSET_KEY);
+			if (cacheSize != null && cacheSize > 0) {
+				preloadPokemonDetails();
+			}
+			preloadCompleted.set(true);
+			logger.info("Startup cache preload completed");
+		} catch (Exception e) {
+			logger.error("Failed to preload cache on startup", e);
+		}
+	}
+
+	/**
+	 * Check if Redis is available and operational
+	 */
+	private boolean isRedisAvailable() {
+		try {
+			stringRedisTemplate.opsForValue().set("redis:health:check", "ok", 1, TimeUnit.SECONDS);
+			String result = stringRedisTemplate.opsForValue().get("redis:health:check");
+			return "ok".equals(result);
+		} catch (Exception e) {
+			logger.warn("Redis health check failed: {}", e.getMessage());
+			return false;
 		}
 	}
 }
