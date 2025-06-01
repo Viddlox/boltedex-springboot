@@ -68,6 +68,26 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			throw new RuntimeException("Error fetching Pokemons", e);
 		}
 	}
+	
+	public Pokemon getPokemon(String name) {
+		try {
+			String cacheKey = POKEMON_DETAIL_CACHE_PREFIX + name;
+			Pokemon cachedPokemon = pokemonRedisTemplate.opsForValue().get(cacheKey);
+
+			if (cachedPokemon != null) {
+				return cachedPokemon;
+			}
+
+			Pokemon pokemon = fetchPokemonFromAPI(name);
+			if (pokemon != null) {
+				pokemonRedisTemplate.opsForValue().set(cacheKey, pokemon, CACHE_TTL_HOURS, TimeUnit.HOURS);
+			}
+
+			return pokemon;
+		} catch (Exception e) {
+			throw new RuntimeException("Error fetching pokemon for: " + name, e);
+		}
+	}
 
 	private void fetchAndCacheAllPokemonNames() {
 		try {
@@ -581,4 +601,5 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			throw new RuntimeException("Error fetching abilities for: " + pokemonName, e);
 		}
 	}
+
 }

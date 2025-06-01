@@ -15,6 +15,10 @@ public class PokemonAPIClientService {
 		return pokemonAPIClient.getPokemons(cursor, limit, searchQuery);
 	}
 
+	public Pokemon getPokemon(String name) {
+		return pokemonAPIClient.getPokemon(name);
+	}
+
 	public List<Pokemon.EvolutionStage> getPokemonEvolutionChain(String name) {
 		return pokemonAPIClient.getPokemonEvolutionChain(name);
 	}

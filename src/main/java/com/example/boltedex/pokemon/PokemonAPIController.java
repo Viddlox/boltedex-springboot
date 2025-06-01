@@ -26,6 +26,12 @@ public class PokemonAPIController {
 		return ResponseEntity.ok(result);
 	}
 
+	@GetMapping("/detail/{name}")
+	public ResponseEntity<Pokemon> getPokemon(@PathVariable String name) {
+		Pokemon pokemon = pokemonAPIClientService.getPokemon(name);
+		return ResponseEntity.ok(pokemon);
+	}
+
 	@GetMapping("/evolution/{name}")
 	public List<Pokemon.EvolutionStage> getPokemonEvolutionChain(@PathVariable String name) {
 		return pokemonAPIClientService.getPokemonEvolutionChain(name);
