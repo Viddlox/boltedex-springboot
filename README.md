@@ -47,7 +47,7 @@
 ## 🚀 Tech Stack
 
 - **SpringBoot**
-- **Vite**
+- **Redis**
 - **PokeAPIv2**
 
 ### 📚 Key Dependencies
