@@ -14,7 +14,9 @@ import com.example.boltedex.pokemon.Pokemon;
 import com.example.boltedex.pokemon.PokemonAPIClientImplementation;
 import org.springframework.scheduling.annotation.Async;
 import java.util.concurrent.atomic.AtomicBoolean;
-
+import com.example.boltedex.exception.APIException;
+import com.example.boltedex.exception.ExceptionConstants;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -66,8 +68,13 @@ public class CacheRefreshScheduler {
 			JsonNode response = restTemplate.getForObject(url, JsonNode.class);
 
 			if (response == null || !response.has("results")) {
-				logger.error("Invalid response from PokeAPI");
-				return;
+				throw new APIException(
+					ExceptionConstants.POKEMON_API_ERROR_MESSAGE,
+					ExceptionConstants.API_ERROR,
+					ExceptionConstants.BAD_GATEWAY,
+					Instant.now().toString(),
+					null
+				);
 			}
 
 			JsonNode results = response.get("results");
@@ -88,7 +95,13 @@ public class CacheRefreshScheduler {
 			logger.info("Successfully preloaded {} Pokemon names into cache", count);
 
 		} catch (Exception e) {
-			logger.error("Failed to preload Pokemon cache", e);
+			throw new APIException(
+				String.format(ExceptionConstants.REDIS_PRELOAD_ERROR_DETAILED, e.getMessage()),
+				ExceptionConstants.CACHE_ERROR,
+				ExceptionConstants.SERVICE_UNAVAILABLE,
+				Instant.now().toString(),
+				e
+			);
 		}
 	}
 
@@ -97,7 +110,6 @@ public class CacheRefreshScheduler {
 	 */
 	@Scheduled(cron = "0 2 3 * * *")
 	public void preloadPokemonDetails() {
-
 		logger.info("Starting Pokemon details preload...");
 
 		try {
@@ -124,34 +136,38 @@ public class CacheRefreshScheduler {
 					continue;
 				}
 
-				try {
-					String url = POKEAPI_BASE_URL + "/pokemon/" + name;
-					JsonNode pokemonData = restTemplate.getForObject(url, JsonNode.class);
+				String url = POKEAPI_BASE_URL + "/pokemon/" + name;
+				JsonNode pokemonData = restTemplate.getForObject(url, JsonNode.class);
 
-					if (pokemonData != null) {
-						Pokemon pokemon = pokemonAPIClient.mapToPokemon(pokemonData);
-						if (pokemon != null) {
-							pokemonRedisTemplate.opsForValue().set(cacheKey, pokemon, CACHE_TTL_HOURS, TimeUnit.HOURS);
-							preloaded++;
-						} else {
-							failed++;
-						}
+				if (pokemonData != null) {
+					Pokemon pokemon = pokemonAPIClient.mapToPokemon(pokemonData);
+					if (pokemon != null) {
+						pokemonRedisTemplate.opsForValue().set(cacheKey, pokemon, CACHE_TTL_HOURS, TimeUnit.HOURS);
+						preloaded++;
 					} else {
 						failed++;
+						logger.warn("Failed to map Pokemon data for: {}", name);
 					}
-					if ((preloaded + failed) % 50 == 0) {
-						logger.info("Progress: {} preloaded, {} skipped, {} failed", preloaded, skipped, failed);
-					}
-				} catch (Exception e) {
-					logger.warn("Failed to preload Pokemon: {}", name, e);
+				} else {
 					failed++;
+					logger.warn("No data returned for Pokemon: {}", name);
+				}
+				
+				if ((preloaded + failed) % 50 == 0) {
+					logger.info("Progress: {} preloaded, {} skipped, {} failed", preloaded, skipped, failed);
 				}
 			}
 			logger.info("Pokemon details preload completed. Preloaded: {}, Skipped: {}, Failed: {}",
 					preloaded, skipped, failed);
 
 		} catch (Exception e) {
-			logger.error("Failed to preload Pokemon details", e);
+			throw new APIException(
+				String.format(ExceptionConstants.REDIS_PRELOAD_DETAILS_ERROR_DETAILED, e.getMessage()),
+				ExceptionConstants.CACHE_ERROR,
+				ExceptionConstants.SERVICE_UNAVAILABLE,
+				Instant.now().toString(),
+				e
+			);
 		}
 	}
 
@@ -166,7 +182,7 @@ public class CacheRefreshScheduler {
 		}
 
 		if (!isRedisAvailable()) {
-			logger.warn("Redis is not available, polling preload...");
+			logger.warn(ExceptionConstants.WARNING_MESSAGE_REDIS_CONNECTION_FAILED);
 			return;
 		}
 
@@ -181,7 +197,13 @@ public class CacheRefreshScheduler {
 			preloadCompleted.set(true);
 			logger.info("Startup cache preload completed");
 		} catch (Exception e) {
-			logger.error("Failed to preload cache on startup", e);
+			throw new APIException(
+				String.format(ExceptionConstants.REDIS_PRELOAD_ERROR_DETAILED, e.getMessage()),
+				ExceptionConstants.CACHE_ERROR,
+				ExceptionConstants.SERVICE_UNAVAILABLE,
+				Instant.now().toString(),
+				e
+			);
 		}
 	}
 
@@ -194,7 +216,7 @@ public class CacheRefreshScheduler {
 			String result = stringRedisTemplate.opsForValue().get("redis:health:check");
 			return "ok".equals(result);
 		} catch (Exception e) {
-			logger.warn("Redis health check failed: {}", e.getMessage());
+			logger.warn(ExceptionConstants.REDIS_CONNECTION_ERROR_DETAILED, e.getMessage());
 			return false;
 		}
 	}

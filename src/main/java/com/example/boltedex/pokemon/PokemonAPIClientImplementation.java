@@ -9,9 +9,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.redis.core.ZSetOperations;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.example.boltedex.exception.APIException;
+import com.example.boltedex.exception.ExceptionConstants;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.time.Instant;
 
 @Service
 public class PokemonAPIClientImplementation implements PokemonAPIClient {
@@ -57,15 +60,17 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 
 			String nextCursor = (pokemonNames.isEmpty()) ? null : pokemonNames.get(pokemonNames.size() - 1);
 			Long size = zSetOps.size(key);
-
-			// We compute total count for efficient chunking on front end
-			// We could hardcode to 1302, but this does not account for search queries or
-			// new pokemon additions
 			long totalCount = size != null ? size : 0;
 
 			return new PokemonAPIClientDTO(pokemons, nextCursor, totalCount);
-		} catch (Exception e) {
-			throw new RuntimeException("Error fetching Pokemons", e);
+		} catch (Exception error) {
+			throw new APIException(
+				String.format(ExceptionConstants.UNEXPECTED_ERROR_MESSAGE, "Pokemons"),
+				ExceptionConstants.CACHE_ERROR,
+				ExceptionConstants.SERVICE_UNAVAILABLE,
+				Instant.now().toString(),
+				error
+			);
 		}
 	}
 	
@@ -84,8 +89,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			}
 
 			return pokemon;
-		} catch (Exception e) {
-			throw new RuntimeException("Error fetching pokemon for: " + name, e);
+		} catch (Exception error) {
+			throw new APIException(
+				String.format(ExceptionConstants.UNEXPECTED_ERROR_MESSAGE, "Pokemon"),
+				ExceptionConstants.INTERNAL_ERROR,
+				ExceptionConstants.INTERNAL_SERVER_ERROR,
+				Instant.now().toString(),
+				error
+			);
 		}
 	}
 
@@ -95,7 +106,12 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			JsonNode response = restTemplate.getForObject(url, JsonNode.class);
 
 			if (response == null) {
-				throw new RuntimeException("Failed to fetch Pokemon list from API");
+				throw new APIException(
+					ExceptionConstants.POKEMON_API_ERROR_MESSAGE,
+					ExceptionConstants.API_ERROR,
+					ExceptionConstants.BAD_GATEWAY,
+					Instant.now().toString()
+				);
 			}
 
 			JsonNode results = response.get("results");
@@ -107,8 +123,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 				}
 				stringRedisTemplate.expire(POKEMON_NAMES_ZSET_KEY, CACHE_TTL_HOURS, TimeUnit.HOURS);
 			}
-		} catch (Exception e) {
-			throw new RuntimeException("Error fetching and caching all Pokemon names", e);
+		} catch (Exception error) {
+			throw new APIException(
+				ExceptionConstants.POKEMON_API_FETCH_CACHE_ERROR_MESSAGE,
+				ExceptionConstants.CACHE_ERROR,
+				ExceptionConstants.SERVICE_UNAVAILABLE,
+				Instant.now().toString(),
+				error
+			);
 		}
 	}
 
@@ -204,9 +226,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			String url = POKEAPI_BASE_URL + "/pokemon/" + name;
 			JsonNode pokemonData = restTemplate.getForObject(url, JsonNode.class);
 			return mapToPokemon(pokemonData);
-		} catch (Exception e) {
-			System.err.println("Failed to fetch Pokemon: " + name + ", error: " + e.getMessage());
-			return null;
+		} catch (Exception error) {
+			throw new APIException(
+				ExceptionConstants.POKEMEMON_API_FETCH_INSTANCE_ERROR_MESSAGE,
+				ExceptionConstants.INTERNAL_ERROR,
+				ExceptionConstants.INTERNAL_SERVER_ERROR,
+				Instant.now().toString(),
+				error
+			);
 		}
 	}
 
@@ -345,9 +372,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 
 			// Step 3: Parse evolution chain recursively
 			return parseEvolutionChain(evolutionChainData.get("chain"));
-		} catch (Exception e) {
-			System.err.println("Failed to fetch evolution chain for: " + pokemonName + ", error: " + e.getMessage());
-			return new ArrayList<>();
+		} catch (Exception error) {
+			throw new APIException(
+				String.format(ExceptionConstants.UNEXPECTED_ERROR_MESSAGE, "Evolution chain"),
+				ExceptionConstants.INTERNAL_ERROR,
+				ExceptionConstants.INTERNAL_SERVER_ERROR,
+				Instant.now().toString(),
+				error
+			);
 		}
 	}
 
@@ -358,8 +390,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 		if (cachedData != null) {
 			try {
 				return objectMapper.readTree(cachedData);
-			} catch (Exception e) {
-				throw new RuntimeException("Error parsing species data for: " + pokemonName, e);
+			} catch (Exception error) {
+				throw new APIException(
+					"Error parsing species data for: " + pokemonName,
+					ExceptionConstants.CACHE_ERROR,
+					ExceptionConstants.SERVICE_UNAVAILABLE,
+					Instant.now().toString(),
+					error
+				);
 			}
 		}
 
@@ -372,8 +410,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			stringRedisTemplate.opsForValue().set(cacheKey,
 					objectMapper.writeValueAsString(speciesData),
 					CACHE_TTL_HOURS, TimeUnit.HOURS);
-		} catch (Exception e) {
-			throw new RuntimeException("Error caching species data for: " + pokemonName, e);
+		} catch (Exception error) {
+			throw new APIException(
+				String.format(ExceptionConstants.UNEXPECTED_ERROR_MESSAGE, "Species data"),
+				ExceptionConstants.CACHE_ERROR,
+				ExceptionConstants.SERVICE_UNAVAILABLE,
+				Instant.now().toString(),
+				error
+			);
 		}
 
 		return speciesData;
@@ -386,8 +430,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 		if (cachedData != null) {
 			try {
 				return objectMapper.readTree(cachedData);
-			} catch (Exception e) {
-				throw new RuntimeException("Error parsing species data for: " + chainId, e);
+			} catch (Exception error) {
+				throw new APIException(
+					ExceptionConstants.POKEMON_API_FETCH_EVOLUTION_CHAIN_ERROR_MESSAGE,
+					ExceptionConstants.CACHE_ERROR,
+					ExceptionConstants.SERVICE_UNAVAILABLE,
+					Instant.now().toString(),
+					error
+				);
 			}
 		}
 
@@ -395,13 +445,19 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 		String url = POKEAPI_BASE_URL + "/evolution-chain/" + chainId;
 		JsonNode chainData = restTemplate.getForObject(url, JsonNode.class);
 
-		// Cache the result (evolution chains are shared across Pokemon)
+		// Cache the result
 		try {
 			stringRedisTemplate.opsForValue().set(cacheKey,
 					objectMapper.writeValueAsString(chainData),
 					CACHE_TTL_HOURS, TimeUnit.HOURS);
-		} catch (Exception e) {
-			throw new RuntimeException("Error caching evolution chain for: " + chainId, e);
+		} catch (Exception error) {
+			throw new APIException(
+				ExceptionConstants.POKEMON_API_FETCH_EVOLUTION_CHAIN_ERROR_MESSAGE,
+				ExceptionConstants.CACHE_ERROR,
+				ExceptionConstants.SERVICE_UNAVAILABLE,
+				Instant.now().toString(),
+				error
+			);
 		}
 
 		return chainData;
@@ -504,9 +560,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 
 			return stage;
 
-		} catch (Exception e) {
-			System.err.println("Failed to create evolution stage for: " + pokemonName);
-			return null;
+		} catch (Exception error) {
+			throw new APIException(
+				ExceptionConstants.POKEMON_API_FETCH_EVOLUTION_STAGE_ERROR_MESSAGE,
+				ExceptionConstants.INTERNAL_ERROR,
+				ExceptionConstants.INTERNAL_SERVER_ERROR,
+				Instant.now().toString(),
+				error
+			);
 		}
 	}
 
@@ -517,10 +578,15 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 
 			if (cachedData != null) {
 				try {
-					return objectMapper.readValue(cachedData, new TypeReference<List<String>>() {
-					});
-				} catch (Exception e) {
-					throw new RuntimeException("Error parsing location area encounters for: " + pokemonName, e);
+					return objectMapper.readValue(cachedData, new TypeReference<List<String>>() {});
+				} catch (Exception error) {
+					throw new APIException(
+						ExceptionConstants.POKEMON_API_FETCH_LOCATION_AREA_ENCOUNTERS_ERROR_MESSAGE,
+						ExceptionConstants.CACHE_ERROR,
+						ExceptionConstants.SERVICE_UNAVAILABLE,
+						Instant.now().toString(),
+						error
+					);
 				}
 			}
 
@@ -545,8 +611,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 
 			return encounters;
 
-		} catch (Exception e) {
-			throw new RuntimeException("Error fetching location area encounters for: " + pokemonName, e);
+		} catch (Exception error) {
+			throw new APIException(
+				ExceptionConstants.POKEMON_API_FETCH_LOCATION_AREA_ENCOUNTERS_ERROR_MESSAGE,
+				ExceptionConstants.API_ERROR,
+				ExceptionConstants.BAD_GATEWAY,
+				Instant.now().toString(),
+				error
+			);
 		}
 	}
 
@@ -597,8 +669,14 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			}
 
 			return abilities;
-		} catch (Exception e) {
-			throw new RuntimeException("Error fetching abilities for: " + pokemonName, e);
+		} catch (Exception error) {
+			throw new APIException(
+				ExceptionConstants.POKEMON_API_FETCH_ABILITIES_ERROR_MESSAGE,
+				ExceptionConstants.API_ERROR,
+				ExceptionConstants.BAD_GATEWAY,
+				Instant.now().toString(),
+				error
+			);
 		}
 	}
 
