@@ -308,36 +308,10 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 		JsonNode showdownNode = spritesNode.path("other").path("showdown");
 
 		if (!showdownNode.isMissingNode() && !showdownNode.isNull()) {
-			if (showdownNode.has("front_default") && !showdownNode.get("front_default").isNull()) {
-				sprites.setFrontDefault(showdownNode.get("front_default").asText());
-			}
-			if (showdownNode.has("back_default") && !showdownNode.get("back_default").isNull()) {
-				sprites.setBackDefault(showdownNode.get("back_default").asText());
-			}
-			if (showdownNode.has("front_shiny") && !showdownNode.get("front_shiny").isNull()) {
-				sprites.setFrontShiny(showdownNode.get("front_shiny").asText());
-			}
-			if (showdownNode.has("back_shiny") && !showdownNode.get("back_shiny").isNull()) {
-				sprites.setBackShiny(showdownNode.get("back_shiny").asText());
-			}
-		}
-
-		// Fallback to static .png sprites if any are still missing
-		if (sprites.getFrontDefault() == null && spritesNode.has("front_default")
-				&& !spritesNode.get("front_default").isNull()) {
-			sprites.setFrontDefault(spritesNode.get("front_default").asText());
-		}
-		if (sprites.getBackDefault() == null && spritesNode.has("back_default")
-				&& !spritesNode.get("back_default").isNull()) {
-			sprites.setBackDefault(spritesNode.get("back_default").asText());
-		}
-		if (sprites.getFrontShiny() == null && spritesNode.has("front_shiny")
-				&& !spritesNode.get("front_shiny").isNull()) {
-			sprites.setFrontShiny(spritesNode.get("front_shiny").asText());
-		}
-		if (sprites.getBackShiny() == null && spritesNode.has("back_shiny")
-				&& !spritesNode.get("back_shiny").isNull()) {
-			sprites.setBackShiny(spritesNode.get("back_shiny").asText());
+			sprites.setFrontDefault(showdownNode.path("front_default").asText(null));
+			sprites.setBackDefault(showdownNode.path("back_default").asText(null));
+			sprites.setFrontShiny(showdownNode.path("front_shiny").asText(null));
+			sprites.setBackShiny(showdownNode.path("back_shiny").asText(null));
 		}
 
 		pokemon.setSprites(sprites);
@@ -524,18 +498,10 @@ public class PokemonAPIClientImplementation implements PokemonAPIClient {
 			JsonNode showdownNode = spritesNode.path("other").path("showdown");
 
 			if (!showdownNode.isMissingNode() && !showdownNode.isNull()) {
-				if (showdownNode.has("front_default") && !showdownNode.get("front_default").isNull()) {
-					sprites.setFrontDefault(showdownNode.get("front_default").asText());
-				}
-				if (showdownNode.has("back_default") && !showdownNode.get("back_default").isNull()) {
-					sprites.setBackDefault(showdownNode.get("back_default").asText());
-				}
-				if (showdownNode.has("front_shiny") && !showdownNode.get("front_shiny").isNull()) {
-					sprites.setFrontShiny(showdownNode.get("front_shiny").asText());
-				}
-				if (showdownNode.has("back_shiny") && !showdownNode.get("back_shiny").isNull()) {
-					sprites.setBackShiny(showdownNode.get("back_shiny").asText());
-				}
+				sprites.setFrontDefault(showdownNode.path("front_default").asText(null));
+				sprites.setBackDefault(showdownNode.path("back_default").asText(null));
+				sprites.setFrontShiny(showdownNode.path("front_shiny").asText(null));
+				sprites.setBackShiny(showdownNode.path("back_shiny").asText(null));
 			}
 
 			// Fallback to static .png sprites if any are still missing
